@@ -24,22 +24,25 @@ LABEL maintainer "Jessie Frazelle <jess@linux.com>"
 # Install Chromium
 # Yes, including the Google API Keys sucks but even debian does the same: https://packages.debian.org/stretch/amd64/chromium/filelist
 RUN apt-get update && apt-get install -y \
-      # chromium \
-      # chromium-l10n \
-      fonts-liberation \
-      fonts-roboto \
-      hicolor-icon-theme \
-      libcanberra-gtk-module \
-      libexif-dev \
-      libgl1-mesa-dri \
-      libgl1-mesa-glx \
-      libpangox-1.0-0 \
-      libv4l-0 \
-      fonts-symbola \
-      # for chrome
-      curl \
-      apt-transport-https \
-      --no-install-recommends \
+    # chromium \
+    # chromium-l10n \
+    fonts-liberation \
+    fonts-roboto \
+    hicolor-icon-theme \
+    libcanberra-gtk-module \
+    libexif-dev \
+    libgl1-mesa-dri \
+    libgl1-mesa-glx \
+    libpango-1.0-0 \
+    libv4l-0 \
+    fonts-symbola \
+    # for chrome
+    ca-certificates  \
+    curl \
+    wget \
+    gnupg \
+    apt-transport-https \
+    --no-install-recommends \
     && rm -rf /var/lib/apt/lists/* \
     && mkdir -p /etc/chromium.d/ \
     && /bin/echo -e 'export GOOGLE_API_KEY="AIzaSyCkfPOPZXDKNn8hhgu3JrA62wIgC93d44k"\nexport GOOGLE_DEFAULT_CLIENT_ID="811574891467.apps.googleusercontent.com"\nexport GOOGLE_DEFAULT_CLIENT_SECRET="kdloedMFGdGla2P1zacGjAQh"' > /etc/chromium.d/googleapikeys
@@ -48,14 +51,18 @@ RUN apt-get update && apt-get install -y \
 # https://linux.how2shout.com/install-google-chrome-on-debian-12-bookworm/
 
 # install chrome key
-RUN curl -fSsL https://dl.google.com/linux/linux_signing_key.pub | sudo gpg --dearmor | sudo tee /usr/share/keyrings/google-chrome.gpg >> /dev/null
+# RUN curl -fSsL https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor | tee /usr/share/keyrings/google-chrome.gpg >> /dev/null
+# with ssl
+# RUN curl -fSsL https://dl-ssl.google.com/linux/linux_signing_key.pub | gpg --dearmor | tee /usr/share/keyrings/google-chrome.gpg >> /dev/null
+RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - 
+
 
 # add chrome to dpkg list
-RUN echo deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main | sudo tee /etc/apt/sources.list.d/google-chrome.list
+RUN echo deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main | tee /etc/apt/sources.list.d/google-chrome.list
 
 
 # update package
-RUN sudo apt update
+RUN apt update
 
 RUN apt install --yes google-chrome-stable
 
