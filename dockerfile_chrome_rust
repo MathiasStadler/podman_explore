@@ -1,0 +1,184 @@
+# syntax=docker/dockerfile:1
+FROM ubuntu:23.10
+
+# build
+# docker buildx build --progress=plain . -t my_ubuntu_chrome_rust_3 -f ./src/dockerfile_chrome_rust
+
+# show which bash version is realy active
+SHELL ["/bin/bash", "-c"]
+RUN help | head -1
+
+# Install form google-chrome => one layer
+
+
+RUN \
+    set -euxo pipefail; \
+    apt-get update \
+    && apt-get install --yes --no-install-recommends --no-install-suggests   \
+    # apparmor \
+    # FROM HERE https://www.linuxcapable.com/how-to-enable-or-disable-apparmor-on-ubuntu-linux/
+    apparmor-utils \ 
+    apparmor-notify \
+    apparmor-profiles \
+    apparmor-profiles-extra \
+    build-essential \
+    ca-certificates  \
+    curl \
+    dbus-x11 \
+    gnupg \
+    init-system-helpers \
+    libasound2 \
+    libcanberra-gtk-module  \
+    libgl1-mesa-dri \
+    libx11-xcb1 \
+    sudo  \
+    unzip \
+    wget 
+
+
+# double
+# ADD google_chrome key 
+#RUN \
+#    set -euxo pipefail \
+#    && wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
+#    && echo "deb http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list 
+
+
+# Set up the google-chrome repo and install
+RUN \
+    set -euxo pipefail; \
+    wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
+    && echo "deb http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list \
+    && apt-get update \
+    && apt-get install --yes --no-install-recommends --no-install-suggests \
+    libcanberra-gtk-module \
+    libcanberra-gtk3-module \
+    && apt-get --yes install google-chrome-stable \
+    && apt-get --yes autoremove \
+    && apt-get --yes clean \
+    && rm -rf /var/lib/apt/lists/* 
+
+# install chromedriver
+ENV CHROME_VERSION = $(google-chrome  --product-version | awk '{print $1}' |awk -F. '{print $1}')
+ENV CHROMEDRIVER_DIR=/chromedriver \
+    DOWNLOAD_DIR=/DOWNLOAD
+
+RUN set -euxo pipefail; \ 
+    mkdir ${CHROMEDRIVER_DIR} \
+    && mkdir ${DOWNLOAD_DIR} \ 
+    && curl --output ${DOWNLOAD_DIR}/chromedriver-linux64.zip  "https://edgedl.me.gvt1.com/edgedl/chrome/chrome-for-testing/119.0.6045.159/linux64/chromedriver-linux64.zip" \
+    && unzip ${DOWNLOAD_DIR}/chromedriver-linux64.zip -d ${CHROMEDRIVER_DIR}
+
+
+# install rust
+# FROM HERE copy orgnal image
+# https://github.com/rust-lang/docker-rust/blob/master/1.74.0/bookworm/Dockerfile
+ENV RUSTUP_HOME=/usr/local/rustup \
+    CARGO_HOME=/usr/local/cargo \
+    PATH=/usr/local/cargo/bin:$PATH \
+    RUST_VERSION=1.74.0
+
+RUN set -eux; \
+    dpkgArch="$(dpkg --print-architecture)"; \
+    case "${dpkgArch##*-}" in \
+    amd64) rustArch='x86_64-unknown-linux-gnu'; rustupSha256='0b2f6c8f85a3d02fde2efc0ced4657869d73fccfce59defb4e8d29233116e6db' ;; \
+    armhf) rustArch='armv7-unknown-linux-gnueabihf'; rustupSha256='f21c44b01678c645d8fbba1e55e4180a01ac5af2d38bcbd14aa665e0d96ed69a' ;; \
+    arm64) rustArch='aarch64-unknown-linux-gnu'; rustupSha256='673e336c81c65e6b16dcdede33f4cc9ed0f08bde1dbe7a935f113605292dc800' ;; \
+    i386) rustArch='i686-unknown-linux-gnu'; rustupSha256='e7b0f47557c1afcd86939b118cbcf7fb95a5d1d917bdd355157b63ca00fc4333' ;; \
+    *) echo >&2 "unsupported architecture: ${dpkgArch}"; exit 1 ;; \
+    esac; \
+    url="https://static.rust-lang.org/rustup/archive/1.26.0/${rustArch}/rustup-init"; \
+    wget "$url"; \
+    echo "${rustupSha256} *rustup-init" | sha256sum -c -; \
+    chmod +x rustup-init; \
+    ./rustup-init -y --no-modify-path --profile minimal --default-toolchain $RUST_VERSION --default-host ${rustArch}; \
+    rm rustup-init; \
+    chmod -R a+w $RUSTUP_HOME $CARGO_HOME; \
+    rustup --version; \
+    cargo --version; \
+    rustc --version;
+
+
+#create user
+ARG USER_NAME=default_user \
+    USER_UID=1999 \
+    USER_GID=1999
+
+RUN set -euxo pipefail; \
+    groupadd --gid $USER_GID $USER_NAME \
+    && useradd --uid $USER_UID --gid $USER_GID --password $USER_NAME --create-home $USER_NAME --shell /bin/bash \
+    && echo "$USER_NAME:$USER_NAME" | chpasswd \
+    && adduser $USER_NAME sudo 
+# start services
+# RUN update-rc.d dbus enable
+
+# USER default_user
+USER $USER_NAME
+
+# add rust demo project
+ENV RUST_PROJECT_DIR=/home/default_user/rust_work_space/tokio_finviz_shortput
+# init cargo project
+# change to home_directory
+RUN set -euxo pipefail; \
+    mkdir /home/$USER_NAME/rust_work_space \
+    &&  cd $_ \
+    &&  mkdir $RUST_PROJECT_DIR  \
+    &&  cargo init $RUST_PROJECT_DIR  \
+    &&  cd $RUST_PROJECT_DIR  \
+    &&  cargo add tokio  \
+    &&  cargo add tokio thirtyfour color-eyre sxd-document sxd-xpath table-extract  \
+    &&  cargo build \
+    &&  cargo run \
+    &&  cd $RUST_PROJECT_DIR \
+    &&  mkdir ./examples
+
+# copy
+COPY ./src/tokio_finviz.rs $RUST_PROJECT_DIR/examples/tokio_finviz.rs 
+
+# add new entry to file e.g. Cargo.toml
+# RUN tee -a /home/default_user/rust_work_space/tokio_finviz_shortput/Cargo.toml > /dev/null <<-"EOT" bash
+# set -e, -u, -x ;
+#
+# [[example]]
+# name = "tokio_finviz"
+# EOT 
+
+# FROM HERE
+# https://www.docker.com/blog/introduction-to-heredocs-in-dockerfiles/
+
+#COPY <<EOF $RUST_PROJECT_DIR/Cargo.toml
+#
+#[[example]]
+#name = "tokio_finviz"
+#EOF
+
+#RUN set -euxo pipefail; \
+#    cd $RUST_PROJECT_DIR \
+#    && cargo build --example tokio_finviz
+
+# ENTRYPOINT ["/bin/bash"]
+# ENTRYPOINT ["google-chrome","--no-sandbox","--disable-features=dbus"]
+# --enable-unsafe-webgpu --enable-features=Vulkan --use-vulkan=swiftshader --use-webgpu-adapter=swiftshader --no-sandbox
+# ENTRYPOINT ["set MESA_LOADER_DRIVER_OVERRIDE=\"i915\"","&&","google-chrome","--enable-unsafe-webgpu", "--enable-features=Vulkan","--use-vulkan=swiftshader","--use-webgpu","-adapter=swiftshader","--no-sandbox","--disable-features=dbus"]
+# ENV MESA_LOADER_DRIVER_OVERRIDE=i915
+RUN set -euxo pipefail; \
+    export DISPLAY=172.19.48.1:0 \
+    sudo service dbus start \
+    export XDG_RUNTIME_DIR=/run/user/$(id -u) \
+    sudo mkdir $XDG_RUNTIME_USER \
+    sudo chmod 700 $XDG_RUNTIME_DIR \
+    sudo chown $(id -un):$(id -gn) $XDG_RUNTIME_DIR \
+    export DBUS_SESSION_BUS_ADDRESS=unix:path=$XDG_RUNTIME_DIR/bus \
+    dbus-daemon --session --address=$DBUS_SESSION_BUS_ADDRESS --nofork --nopidfile --syslog-only & 
+
+#FROM HERE
+#  https://stackoverflow.com/questions/70422318/getting-failed-to-connect-to-the-bus-could-not-parse-server-address-error-whe
+# ENV DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus
+ENV DBUS_SESSION_BUS_ADDRESS=/tmp
+
+# USER default_user
+USER $USERNAME
+
+# ENTRYPOINT ["google-chrome","--enable-unsafe-webgpu", "--enable-features=Vulkan","--use-vulkan=swiftshader","--use-webgpu","-adapter=swiftshader","--no-sandbox","--disable-features=dbus"]
+# ENTRYPOINT ["google-chrome","--no-sandbox","--disable-gpu","--disable-features=dbus","--enable-gpu-rasterization"]
+ENTRYPOINT ["google-chrome","--no-sandbox","--disable-gpu","--enable-gpu-rasterization"]
