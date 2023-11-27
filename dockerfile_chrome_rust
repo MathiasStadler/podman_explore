@@ -187,6 +187,9 @@ RUN \
 # ENV DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus
 ENV DBUS_SESSION_BUS_ADDRESS=/tmp
 
+
+ENV XDG_RUNTIME_DIR=/run/user/1000
+
 # USER default_user
 USER $USERNAME
 
