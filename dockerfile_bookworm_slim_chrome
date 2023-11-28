@@ -44,12 +44,18 @@ LABEL maintainer "Jessie Frazelle <jess@linux.com>"
     libpango-1.0-0 \
     libv4l-0 \
     fonts-symbola \
+    libcanberra-gtk-module \
+    libcanberra-gtk-common-dev \
+    libcanberra-gtk3-0 \
+    libcanberra-gtk3-module \
+    dbus-x11 \
     # for chrome
     ca-certificates  \
     curl \
     wget \
     gnupg \
     apt-transport-https \
+    sudo \
     --no-install-recommends \
     && rm -rf /var/lib/apt/lists/* \
     && mkdir -p /etc/chromium.d/ \
@@ -74,15 +80,22 @@ RUN apt update
 RUN apt install --yes google-chrome-stable
 
 # Add chromium user
-RUN groupadd -r chrome && useradd -r -g chrome -G audio,video chrome \
+RUN groupadd -r chrome && useradd -r -g chrome -G audio,video,sudo chrome \
     && mkdir -p /home/chrome/Downloads && chown -R chrome:chrome /home/chrome
 
-ENV DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus
+# ENV DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus
 
 # Run as non privileged user
 USER chrome
 
+# ENV DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus
+
+RUN mkdir /tmp/data
+
 # ENTRYPOINT ["/usr/bin/google-chrome","--no-sandbox"]
 # "--disable-gpu","--disable-features=dbus"
-ENTRYPOINT ["/usr/bin/google-chrome","--no-sandbox","--disable-gpu","--disable-features=dbus"]
-CMD [ "--user-data-dir=/data" ]
+ENTRYPOINT ["/usr/bin/google-chrome", \
+"--no-sandbox", \
+"--disable-gpu", \
+"--disable-features=dbus"]
+CMD [ "--user-data-dir=/tmp/data" ]
