@@ -21,9 +21,17 @@
 FROM debian:bookworm-slim
 LABEL maintainer "Jessie Frazelle <jess@linux.com>"
 
+# RUN apt-get update && apt-get install -y wget curl gnupg apt-transport-https ca-certificates\
+# gnupg \
+# apt-transport-https \
+# ca-certificates \
+# # wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add -
+# # curl -fSsL https://dl-ssl.google.com/linux/linux_signing_key.pub| gpg --dearmor | tee /usr/share/keyrings/google-chrome.gpg >> /dev/null \
+# curl -fSsL https://dl-ssl.google.com/linux/linux_signing_key.pub| gpg --dearmor | tee /usr/share/keyrings/google-chrome.gpg|apt-key adv --keyserver keyserver.ubuntu.com --recv-keys
+
 # Install Chromium
 # Yes, including the Google API Keys sucks but even debian does the same: https://packages.debian.org/stretch/amd64/chromium/filelist
-RUN apt-get update && apt-get install -y \
+ RUN apt-get update && apt-get install -y \
     # chromium \
     # chromium-l10n \
     fonts-liberation \
@@ -54,7 +62,9 @@ RUN apt-get update && apt-get install -y \
 # RUN curl -fSsL https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor | tee /usr/share/keyrings/google-chrome.gpg >> /dev/null
 # with ssl
 # RUN curl -fSsL https://dl-ssl.google.com/linux/linux_signing_key.pub | gpg --dearmor | tee /usr/share/keyrings/google-chrome.gpg >> /dev/null
-RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - 
+# RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add -
+RUN curl -fSsL https://dl-ssl.google.com/linux/linux_signing_key.pub| gpg --dearmor | tee /usr/share/keyrings/google-chrome.gpg|apt-key adv --keyserver keyserver.ubuntu.com --recv-keys
+
 
 
 # add chrome to dpkg list
