@@ -48,7 +48,9 @@ LABEL maintainer "Jessie Frazelle <jess@linux.com>"
     libcanberra-gtk-common-dev \
     libcanberra-gtk3-0 \
     libcanberra-gtk3-module \
-    dbus-x11 \
+    # wait for next step 
+    # dbus-x11 \
+    #
     # for chrome
     ca-certificates  \
     curl \
@@ -88,14 +90,14 @@ RUN groupadd -r chrome && useradd -r -g chrome -G audio,video,sudo chrome \
 # Run as non privileged user
 USER chrome
 
-# ENV DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus
+ENV DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus
 
 RUN mkdir /tmp/data
 
 # ENTRYPOINT ["/usr/bin/google-chrome","--no-sandbox"]
 # "--disable-gpu","--disable-features=dbus"
-ENTRYPOINT ["/usr/bin/google-chrome", \
+ENTRYPOINT ["/usr/bin/google-chrome-stable", \
 "--no-sandbox", \
 "--disable-gpu", \
 "--disable-features=dbus"]
-CMD [ "--user-data-dir=/tmp/data" ]
+CMD [ "--user-data-dir=/data" ]
