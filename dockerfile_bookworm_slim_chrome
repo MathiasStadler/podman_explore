@@ -65,11 +65,8 @@ LABEL maintainer "Jessie Frazelle <jess@linux.com>"
 # RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add -
 RUN curl -fSsL https://dl-ssl.google.com/linux/linux_signing_key.pub| gpg --dearmor | tee /usr/share/keyrings/google-chrome.gpg|apt-key adv --keyserver keyserver.ubuntu.com --recv-keys
 
-
-
 # add chrome to dpkg list
 RUN echo deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main | tee /etc/apt/sources.list.d/google-chrome.list
-
 
 # update package
 RUN apt update
@@ -80,9 +77,12 @@ RUN apt install --yes google-chrome-stable
 RUN groupadd -r chrome && useradd -r -g chrome -G audio,video chrome \
     && mkdir -p /home/chrome/Downloads && chown -R chrome:chrome /home/chrome
 
+ENV DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus
+
 # Run as non privileged user
 USER chrome
 
-
-ENTRYPOINT ["/usr/bin/google-chrome","--no-sandbox"]
+# ENTRYPOINT ["/usr/bin/google-chrome","--no-sandbox"]
+# "--disable-gpu","--disable-features=dbus"
+ENTRYPOINT ["/usr/bin/google-chrome","--no-sandbox","--disable-gpu","--disable-features=dbus"]
 CMD [ "--user-data-dir=/data" ]
